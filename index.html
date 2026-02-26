@@ -693,27 +693,51 @@ function stopVoice() {
 // ── Generate ──
 async function generate() {
   const text = document.getElementById('day-input').value.trim();
-  if (text.length < 10) { showToast('Напиши хотя бы пару предложений 😊'); return; }
+  if (text.length < 10) { showToast('Напиши хотя бы пару предложений'); return; }
+
   state.text = text;
   goTo(3);
   animateLoadingSteps();
+
   try {
-    const resp = await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-generate', {
+    const resp = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: state.userId, user_name: state.userName, text: state.text })
+      body: JSON.stringify({
+        user_id: state.userId,
+        user_name: state.userName,
+        text: state.text
+      })
     });
-    const data = await resp.json();
-    const chapter = data.chapter || data.output || data.text || '';
-    if (!chapter) throw new Error('empty');
-    state.generatedChapter = chapter;
+
+    const raw = await resp.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { data = { raw }; }
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${raw}`);
+
+    const d = Array.isArray(data) ? data[0] : data;
+    const chapter =
+      d?.chapter ??
+      d?.output ??
+      d?.text ??
+      d?.data?.chapter ??
+      d?.result?.chapter ??
+      d?.message?.content ??
+      '';
+
+    if (!chapter || typeof chapter !== 'string') {
+      console.error('Unexpected n8n response:', data);
+      throw new Error('empty chapter');
+    }
+
+    state.generatedChapter = chapter.trim();
     state.isSaved = false;
-    showResult(chapter);
-  } catch {
-    const demo = `К вечеру город стал тише, будто сам устал от бесконечной спешки. Я шёл вдоль реки и чувствовал, как холодный воздух снимает тяжесть с плеч. А ночью, в комнате с мягким светом, появилось редкое и почти забытое ощущение — спокойствие, которое не нужно заслуживать.`;
-    state.generatedChapter = demo;
-    state.isSaved = false;
-    showResult(demo);
+    showResult(state.generatedChapter);
+  } catch (e) {
+    console.error('Generate error:', e);
+    showToast('Не удалось получить главу из n8n');
+    goTo(2);
   }
 }
 
