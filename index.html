@@ -245,7 +245,7 @@
   .chapter-text {
     font-family: 'Playfair Display', serif;
     font-size: 16px; line-height: 1.8; color: var(--text);
-    position: relative; z-index: 1; font-style: italic;
+    position: relative; z-index: 1; font-style: normal;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
@@ -614,6 +614,7 @@ async function readJsonOrText(resp) {
 function extractChapters(data) {
   if (!data) return [];
   if (Array.isArray(data)) return data;
+  if (data.chapter || data.text || data.output || data.chapter_text || data.content) return [data];
   if (Array.isArray(data.chapters)) return data.chapters;
   if (Array.isArray(data.data)) return data.data;
   if (Array.isArray(data.items)) return data.items;
@@ -624,6 +625,32 @@ function extractChapters(data) {
   if (Array.isArray(data?.data?.chapters)) return data.data.chapters;
   if (Array.isArray(data?.result?.chapters)) return data.result.chapters;
   return [];
+}
+
+async function fetchChaptersWithFallback(payload) {
+  const userId = encodeURIComponent(getUserIdString());
+  const separator = N8N_LIST_URL.includes('?') ? '&' : '?';
+
+  const attempts = [
+    () => fetch(N8N_LIST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }),
+    () => fetch(`${N8N_LIST_URL}${separator}user_id=${userId}`, { method: 'GET' }),
+    () => fetch(`${N8N_LIST_URL}${separator}userId=${userId}`, { method: 'GET' }),
+  ];
+
+  let lastError = 'unknown';
+  for (const runAttempt of attempts) {
+    const resp = await runAttempt();
+    const parsed = await readJsonOrText(resp);
+    if (resp.ok) return parsed;
+    lastError = `HTTP ${resp.status}: ${String(parsed.raw || '').slice(0, 220)}`;
+    console.error('List failed attempt:', resp.status, parsed.raw);
+  }
+
+  throw new Error(lastError);
 }
 
 function goTo(n) {
@@ -829,31 +856,12 @@ async function loadChapters() {
   }
 
   try {
-    let resp = await fetch(N8N_LIST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildBasePayload())
-    });
-
-    // Some n8n list webhooks are configured as GET, not POST.
-    if (resp.status === 404 || resp.status === 405) {
-      const userId = encodeURIComponent(getUserIdString());
-      const separator = N8N_LIST_URL.includes('?') ? '&' : '?';
-      resp = await fetch(`${N8N_LIST_URL}${separator}user_id=${userId}`, {
-        method: 'GET'
-      });
-    }
-
-    const parsed = await readJsonOrText(resp);
-    if (!resp.ok) {
-      console.error('List failed:', resp.status, parsed.raw);
-      throw new Error(`HTTP ${resp.status}`);
-    }
-
+    const parsed = await fetchChaptersWithFallback(buildBasePayload());
     const data = parsed.json || {};
     const chapters = extractChapters(data);
     renderChapters(chapters);
-  } catch {
+  } catch (err) {
+    console.error('List failed final:', err);
     document.getElementById('book-loading').style.display = 'none';
     document.getElementById('book-empty').style.display = 'flex';
     document.getElementById('book-count').textContent = '0 глав';
