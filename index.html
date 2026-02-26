@@ -759,7 +759,7 @@ async function saveChapter() {
   btn.textContent = 'Сохраняю...';
 
   try {
-    const resp = await fetch(N8N_SAVE_URL, {
+    const resp = await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
