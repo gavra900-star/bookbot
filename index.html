@@ -698,7 +698,7 @@ async function generate() {
   goTo(3);
   animateLoadingSteps();
   try {
-    const resp = await fetch(https://cintre.app.n8n.cloud/webhook/bookbot-generate, {
+    const resp = await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: state.userId, user_name: state.userName, text: state.text })
@@ -767,7 +767,7 @@ async function saveChapter() {
   btn.disabled = true; btn.textContent = 'Сохраняю...';
 
   try {
-    await fetch(https://cintre.app.n8n.cloud/webhook/bookbot-save, {
+    await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -801,7 +801,7 @@ async function loadChapters() {
   document.getElementById('book-count').textContent = '...';
 
   try {
-    const resp = await fetch(https://cintre.app.n8n.cloud/webhook/bookbot-list, {
+    const resp = await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: state.userId })
