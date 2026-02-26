@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BookBot — твоя книга по дням</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2230;
+    --border: rgba(255,255,255,0.08);
+    --gold: #c9a84c;
+    --gold-dim: rgba(201,168,76,0.15);
+    --gold-glow: rgba(201,168,76,0.4);
+    --text: #e8e3d8;
+    --text-dim: #8b8680;
+    --text-muted: #4a4640;
+    --success: #3dd68c;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    overflow: hidden;
+  }
+
+  #app { width: 100%; height: 100%; position: relative; overflow: hidden; }
+
+  /* ─── SCREENS ─── */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    padding: 0 0 env(safe-area-inset-bottom, 16px);
+    opacity: 0; pointer-events: none;
+    transform: translateX(40px);
+    transition: opacity .35s cubic-bezier(.4,0,.2,1), transform .35s cubic-bezier(.4,0,.2,1);
+    overflow-y: auto;
+  }
+  .screen.active { opacity: 1; pointer-events: all; transform: translateX(0); }
+  .screen.exit-left { opacity: 0; transform: translateX(-40px); pointer-events: none; }
+
+  .bg-orb { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
+  .bg-orb-1 {
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(201,168,76,0.06) 0%, transparent 70%);
+    top: -80px; right: -80px;
+  }
+  .bg-orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(74,158,255,0.04) 0%, transparent 70%);
+    bottom: -120px; left: -120px;
+  }
+
+  /* ─── SHARED ─── */
+  .screen-content {
+    flex: 1; padding: 24px 20px;
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+  }
+  .header-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--gold);
+    margin-bottom: 8px; opacity: 0.8;
+  }
+  .screen-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; font-weight: 600;
+    line-height: 1.25; color: var(--text); margin-bottom: 10px;
+  }
+  .screen-subtitle { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+  /* ─── BUTTONS ─── */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 16px 24px;
+    border: none; border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold) 0%, #b8922e 100%);
+    color: #0d0d0d; box-shadow: 0 4px 20px var(--gold-glow);
+  }
+  .btn-primary:disabled { opacity: 0.6; box-shadow: none; }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-book {
+    background: var(--gold-dim); color: var(--gold);
+    border: 1px solid rgba(201,168,76,0.3);
+    font-size: 14px; padding: 12px 20px;
+  }
+
+  .bottom-bar {
+    padding: 16px 20px;
+    background: linear-gradient(to top, var(--bg) 70%, transparent);
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .back-btn {
+    background: transparent; border: none;
+    color: var(--text-dim); cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    margin-bottom: 4px; transition: color .2s;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* ══════════════════════════════ */
+  /* SCREEN 1: ONBOARDING          */
+  /* ══════════════════════════════ */
+  .hero {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: center; padding-top: 32px;
+  }
+  .book-icon {
+    width: 72px; height: 72px;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin-bottom: 28px; position: relative;
+  }
+  .book-icon::after {
+    content: ''; position: absolute; inset: -1px; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(201,168,76,0.3), transparent 60%);
+    pointer-events: none;
+  }
+  .feature-list { list-style: none; margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
+  .feature-item { display: flex; align-items: flex-start; gap: 12px; }
+  .feature-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); margin-top: 6px; flex-shrink: 0; }
+  .feature-text { font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .feature-text strong { color: var(--text); font-weight: 500; }
+
+  /* ══════════════════════════════ */
+  /* SCREEN 2: INPUT               */
+  /* ══════════════════════════════ */
+  .input-area { position: relative; margin-top: 20px; flex: 1; display: flex; flex-direction: column; }
+  .day-textarea {
+    flex: 1; min-height: 200px; width: 100%;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 15px; line-height: 1.6;
+    resize: none; outline: none; transition: border-color .2s;
+  }
+  .day-textarea:focus { border-color: rgba(201,168,76,0.4); }
+  .day-textarea::placeholder { color: var(--text-muted); }
+
+  .input-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .char-count { font-size: 12px; color: var(--text-muted); }
+  .char-count.ok { color: var(--success); }
+
+  .voice-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 8px 16px;
+    color: var(--text-dim); font-size: 13px;
+    cursor: pointer; transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .voice-btn.recording {
+    background: rgba(255,80,80,0.12);
+    border-color: rgba(255,80,80,0.4); color: #ff6060;
+    animation: pulse-border 1.2s infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,80,80,0.3); }
+    50%      { box-shadow: 0 0 0 6px rgba(255,80,80,0); }
+  }
+  .voice-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .voice-btn.recording .voice-dot { animation: blink 1s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .auto-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 20px; padding: 6px 14px;
+    font-size: 12px; color: var(--gold);
+    margin-top: 14px; width: fit-content;
+  }
+
+  /* ══════════════════════════════ */
+  /* SCREEN 3: LOADING             */
+  /* ══════════════════════════════ */
+  #screen-3 .screen-content {
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .loading-orb {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(201,168,76,0.3), rgba(201,168,76,0.05));
+    border: 1px solid rgba(201,168,76,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; margin-bottom: 32px; position: relative;
+    animation: float 3s ease-in-out infinite;
+  }
+  .loading-orb::before {
+    content: ''; position: absolute; inset: -12px; border-radius: 50%;
+    border: 1px solid rgba(201,168,76,0.1);
+    animation: spin-slow 8s linear infinite;
+    border-top-color: rgba(201,168,76,0.3);
+  }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+  .loading-steps {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-top: 28px; text-align: left;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px; min-width: 260px;
+  }
+  .loading-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: var(--text-muted); transition: color .4s;
+  }
+  .loading-step.done { color: var(--success); }
+  .loading-step.active { color: var(--text); }
+  .step-status { width: 16px; text-align: center; font-size: 14px; }
+
+  /* ══════════════════════════════ */
+  /* SCREEN 4: RESULT              */
+  /* ══════════════════════════════ */
+  .chapter-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .chapter-badge {
+    background: var(--gold-dim); border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 6px; padding: 4px 10px;
+    font-size: 11px; color: var(--gold); font-weight: 500;
+  }
+  .chapter-date { font-size: 12px; color: var(--text-muted); }
+
+  .chapter-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px; flex: 1; position: relative; overflow: hidden;
+  }
+  .chapter-card::before {
+    content: '\201C';
+    position: absolute; top: 8px; left: 16px;
+    font-family: 'Playfair Display', serif;
+    font-size: 72px; color: var(--gold); opacity: 0.12; line-height: 1;
+  }
+  .chapter-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px; line-height: 1.8; color: var(--text);
+    position: relative; z-index: 1; font-style: italic;
+  }
+  .chapter-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 12px;
+  }
+  .chapter-words { font-size: 12px; color: var(--text-muted); }
+  .copy-btn {
+    background: transparent; border: none;
+    color: var(--text-dim); font-size: 20px;
+    cursor: pointer; padding: 4px; transition: color .2s;
+  }
+  .copy-btn:hover { color: var(--gold); }
+
+  .result-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+  .result-row { display: flex; gap: 10px; }
+  .result-row .btn { flex: 1; padding: 14px; font-size: 14px; }
+
+  /* Сохранение — состояния */
+  .save-pending  { display: flex; }
+  .save-done     { display: none; }
+  .saved .save-pending { display: none; }
+  .saved .save-done    { display: flex; }
+
+  .save-done {
+    align-items: center; gap: 8px;
+    background: rgba(61,214,140,0.1); border: 1px solid rgba(61,214,140,0.25);
+    border-radius: var(--radius-sm); padding: 12px 16px;
+    font-size: 14px; color: var(--success);
+  }
+  .save-done-actions {
+    display: flex; gap: 10px; margin-top: 0;
+  }
+
+  /* ══════════════════════════════ */
+  /* SCREEN 5: MY BOOK             */
+  /* ══════════════════════════════ */
+  #screen-5 {
+    overflow-y: auto;
+  }
+  #screen-5 .screen-content {
+    padding-bottom: 32px;
+  }
+
+  .book-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .book-count {
+    font-size: 12px; color: var(--text-muted);
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 10px;
+  }
+
+  /* Список глав */
+  .chapters-list {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-top: 20px;
+  }
+
+  .chapter-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .chapter-item:hover { border-color: rgba(201,168,76,0.2); }
+
+  .chapter-item-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chapter-item-left { flex: 1; min-width: 0; }
+  .chapter-item-num {
+    font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--gold); opacity: 0.7; margin-bottom: 4px;
+  }
+  .chapter-item-preview {
+    font-family: 'Playfair Display', serif;
+    font-size: 14px; font-style: italic; color: var(--text);
+    line-height: 1.4;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 240px;
+  }
+  .chapter-item-date {
+    font-size: 11px; color: var(--text-muted); margin-top: 4px;
+  }
+
+  .chapter-item-arrow {
+    color: var(--text-muted); font-size: 16px;
+    transition: transform .25s; flex-shrink: 0; margin-left: 12px;
+  }
+  .chapter-item.open .chapter-item-arrow { transform: rotate(180deg); }
+
+  .chapter-item-body {
+    max-height: 0; overflow: hidden;
+    transition: max-height .35s cubic-bezier(.4,0,.2,1);
+  }
+  .chapter-item.open .chapter-item-body { max-height: 800px; }
+
+  .chapter-item-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px; font-style: italic;
+    line-height: 1.75; color: var(--text);
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .chapter-item-actions {
+    display: flex; gap: 8px;
+    padding: 0 16px 14px;
+  }
+  .chip-btn {
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 12px;
+    font-size: 12px; color: var(--text-dim);
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all .2s;
+  }
+  .chip-btn:hover { border-color: rgba(201,168,76,0.4); color: var(--gold); }
+
+  /* Пустое состояние */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; text-align: center;
+    flex: 1; padding: 40px 20px;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .empty-sub { font-size: 14px; color: var(--text-muted); }
+
+  /* Загрузка книги */
+  .book-loading {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 12px; padding: 40px 0; color: var(--text-dim);
+    font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px; border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--gold);
+    animation: spin-slow 1s linear infinite;
+  }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 24px; padding: 10px 18px;
+    font-size: 13px; color: var(--text);
+    opacity: 0; transition: all .3s;
+    pointer-events: none; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SCREEN 1: ONBOARDING          -->
+  <!-- ══════════════════════════════ -->
+  <div class="screen active" id="screen-1">
+    <div class="screen-content">
+      <div class="hero">
+        <div class="book-icon">📖</div>
+        <div class="header-label">BookBot</div>
+        <h1 class="screen-title">Твоя книга<br>по дням</h1>
+        <p class="screen-subtitle">Расскажи, как прошёл день — бот превратит это в художественную главу.</p>
+        <ul class="feature-list">
+          <li class="feature-item">
+            <div class="feature-dot"></div>
+            <div class="feature-text"><strong>30 секунд</strong> — от мысли до готовой главы</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-dot"></div>
+            <div class="feature-text"><strong>Текст или голос</strong> — как удобно</div>
+          </li>
+          <li class="feature-item">
+            <div class="feature-dot"></div>
+            <div class="feature-text"><strong>Вся книга</strong> — все главы в одном месте</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <button class="btn btn-primary" onclick="goTo(2)">Написать главу →</button>
+      <button class="btn btn-book" onclick="openBook()">📚 Открыть мою книгу</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SCREEN 2: INPUT               -->
+  <!-- ══════════════════════════════ -->
+  <div class="screen" id="screen-2">
+    <div class="screen-content">
+      <button class="back-btn" onclick="goTo(1)">← Назад</button>
+
+      <div class="header-label" style="margin-top:16px">Как прошёл день?</div>
+      <h2 class="screen-title">Напиши или<br>надиктуй</h2>
+      <p class="screen-subtitle">2–3 предложения — достаточно. Пиши как есть.</p>
+
+      <div class="input-area">
+        <textarea
+          class="day-textarea"
+          id="day-input"
+          placeholder="Сегодня был тяжёлый день на работе, зато вечером я прогулялся вдоль реки..."
+          maxlength="600"
+          oninput="updateCharCount()"
+        ></textarea>
+
+        <div class="input-footer">
+          <span class="char-count" id="char-count">0 / 450</span>
+          <button class="voice-btn" id="voice-btn" onclick="toggleVoice()">
+            <span class="voice-dot"></span>
+            <span id="voice-label">Голосом</span>
+          </button>
+        </div>
+        <div class="auto-badge">✨ Жанр и стиль — бот подберёт сам</div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <button class="btn btn-primary" onclick="generate()">Создать главу →</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SCREEN 3: LOADING             -->
+  <!-- ══════════════════════════════ -->
+  <div class="screen" id="screen-3">
+    <div class="screen-content">
+      <div class="loading-orb">🖋</div>
+      <div class="header-label">Создаю главу</div>
+      <h2 class="screen-title" style="text-align:center">Бот работает...</h2>
+      <div class="loading-steps">
+        <div class="loading-step" id="lstep-1">
+          <span class="step-status" id="licon-1">○</span>
+          <span>Понял ключевые события дня</span>
+        </div>
+        <div class="loading-step" id="lstep-2">
+          <span class="step-status" id="licon-2">○</span>
+          <span>Выделил эмоции и контекст</span>
+        </div>
+        <div class="loading-step" id="lstep-3">
+          <span class="step-status" id="licon-3">○</span>
+          <span>Формирую литературный текст...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SCREEN 4: RESULT              -->
+  <!-- ══════════════════════════════ -->
+  <div class="screen" id="screen-4">
+    <div class="screen-content">
+      <div class="header-label">Готовая глава</div>
+      <div class="chapter-meta">
+        <span class="chapter-badge">Художественная проза</span>
+        <span class="chapter-date" id="result-date"></span>
+      </div>
+
+      <div class="chapter-card">
+        <p class="chapter-text" id="chapter-output"></p>
+      </div>
+      <div class="chapter-footer">
+        <span class="chapter-words" id="chapter-words"></span>
+        <button class="copy-btn" onclick="copyChapter()" title="Копировать">⧉</button>
+      </div>
+
+      <!-- Состояние ДО сохранения -->
+      <div class="result-actions" id="save-block">
+        <div class="save-pending">
+          <button class="btn btn-primary" onclick="saveChapter()" id="save-btn">
+            📚 Сохранить в книгу
+          </button>
+        </div>
+        <div class="save-done">
+          <span>✓</span><span>Глава сохранена!</span>
+        </div>
+      </div>
+
+      <!-- Кнопки после (появляются сразу) -->
+      <div style="display:flex; gap:10px; margin-top:10px">
+        <button class="btn btn-secondary" style="flex:1;padding:14px;font-size:14px" onclick="shareChapter()">↑ Поделиться</button>
+        <button class="btn btn-ghost" style="flex:1;padding:14px;font-size:14px" onclick="newChapter()">+ Новая глава</button>
+      </div>
+
+      <!-- Кнопка "посмотреть книгу" — появляется после сохранения -->
+      <div style="margin-top:10px">
+        <button class="btn btn-book" id="open-book-btn" style="display:none" onclick="openBook()">
+          📖 Посмотреть мою книгу
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════ -->
+  <!-- SCREEN 5: МОЯ КНИГА           -->
+  <!-- ══════════════════════════════ -->
+  <div class="screen" id="screen-5">
+    <div class="screen-content">
+      <button class="back-btn" onclick="goTo(1)">← Назад</button>
+
+      <div class="book-header" style="margin-top:16px">
+        <div>
+          <div class="header-label">Моя книга</div>
+          <h2 class="screen-title" style="margin-bottom:0">Все главы</h2>
+        </div>
+        <span class="book-count" id="book-count">0 глав</span>
+      </div>
+
+      <!-- Загрузка -->
+      <div class="book-loading" id="book-loading">
+        <div class="spinner"></div>
+        <span>Загружаю главы...</span>
+      </div>
+
+      <!-- Пустое состояние -->
+      <div class="empty-state" id="book-empty" style="display:none">
+        <div class="empty-icon">📓</div>
+        <div class="empty-title">Книга пока пустая</div>
+        <div class="empty-sub">Напиши первую главу — она появится здесь</div>
+      </div>
+
+      <!-- Список глав -->
+      <div class="chapters-list" id="chapters-list" style="display:none"></div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="btn btn-primary" onclick="goTo(2)">+ Написать новую главу</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ── Замени на свои реальные URL ──
+const N8N_WEBHOOK_URL = 'https://cintre.app.n8n.cloud/webhook/bookbot-generate';
+const N8N_SAVE_URL    = 'https://cintre.app.n8n.cloud/webhook/bookbot-save';
+const N8N_LIST_URL    = 'https://cintre.app.n8n.cloud/webhook/bookbot-list';
+
+let state = {
+  text: '',
+  generatedChapter: '',
+  isSaved: false,
+  userId:   tg?.initDataUnsafe?.user?.id        || 'dev_user',
+  userName: tg?.initDataUnsafe?.user?.first_name || 'Пользователь',
+};
+let currentScreen = 1;
+
+// ── Navigation ──
+function goTo(n) {
+  const from = document.getElementById(`screen-${currentScreen}`);
+  const to   = document.getElementById(`screen-${n}`);
+  from.classList.add('exit-left');
+  from.classList.remove('active');
+  setTimeout(() => from.classList.remove('exit-left'), 350);
+  to.style.transform = n > currentScreen ? 'translateX(40px)' : 'translateX(-40px)';
+  to.classList.add('active');
+  currentScreen = n;
+  to.scrollTop = 0;
+}
+
+// ── Открыть книгу ──
+function openBook() {
+  goTo(5);
+  loadChapters();
+}
+
+// ── Input ──
+function updateCharCount() {
+  const ta  = document.getElementById('day-input');
+  const cc  = document.getElementById('char-count');
+  const len = ta.value.length;
+  cc.textContent = `${len} / 450`;
+  cc.className   = 'char-count' + (len >= 50 ? ' ok' : '');
+  state.text = ta.value;
+}
+
+// ── Voice ──
+let recognition = null, isRecording = false;
+function toggleVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Голосовой ввод недоступен на этом устройстве'); return; }
+  isRecording ? stopVoice() : startVoice();
+}
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  const ta = document.getElementById('day-input');
+  const base = ta.value;
+  recognition.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    ta.value = base + (base && final ? ' ' : '') + final + interim;
+    updateCharCount();
+  };
+  recognition.onerror = () => { stopVoice(); showToast('Не удалось запустить микрофон'); };
+  recognition.onend   = () => { if (isRecording) stopVoice(); };
+  recognition.start();
+  isRecording = true;
+  document.getElementById('voice-btn').classList.add('recording');
+  document.getElementById('voice-label').textContent = 'Говорите...';
+}
+function stopVoice() {
+  recognition?.stop(); recognition = null; isRecording = false;
+  document.getElementById('voice-btn').classList.remove('recording');
+  document.getElementById('voice-label').textContent = 'Голосом';
+}
+
+// ── Generate ──
+async function generate() {
+  const text = document.getElementById('day-input').value.trim();
+  if (text.length < 10) { showToast('Напиши хотя бы пару предложений 😊'); return; }
+  state.text = text;
+  goTo(3);
+  animateLoadingSteps();
+  try {
+    const resp = await fetch(N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: state.userId, user_name: state.userName, text: state.text })
+    });
+    const data = await resp.json();
+    const chapter = data.chapter || data.output || data.text || '';
+    if (!chapter) throw new Error('empty');
+    state.generatedChapter = chapter;
+    state.isSaved = false;
+    showResult(chapter);
+  } catch {
+    const demo = `К вечеру город стал тише, будто сам устал от бесконечной спешки. Я шёл вдоль реки и чувствовал, как холодный воздух снимает тяжесть с плеч. А ночью, в комнате с мягким светом, появилось редкое и почти забытое ощущение — спокойствие, которое не нужно заслуживать.`;
+    state.generatedChapter = demo;
+    state.isSaved = false;
+    showResult(demo);
+  }
+}
+
+let loadingTimer;
+function animateLoadingSteps() {
+  [1,2,3].forEach(i => {
+    document.getElementById(`lstep-${i}`).className = 'loading-step';
+    document.getElementById(`licon-${i}`).textContent = '○';
+  });
+  let i = 0;
+  (function next() {
+    if (i < 3) {
+      if (i > 0) {
+        document.getElementById(`lstep-${i}`).classList.add('done');
+        document.getElementById(`licon-${i}`).textContent = '✓';
+      }
+      document.getElementById(`lstep-${i+1}`).classList.add('active');
+      i++;
+      loadingTimer = setTimeout(next, 1800);
+    }
+  })();
+}
+
+function showResult(chapter) {
+  clearTimeout(loadingTimer);
+  [1,2,3].forEach(i => {
+    document.getElementById(`lstep-${i}`).className = 'loading-step done';
+    document.getElementById(`licon-${i}`).textContent = '✓';
+  });
+  setTimeout(() => {
+    document.getElementById('chapter-output').textContent = chapter;
+    document.getElementById('chapter-words').textContent = `${chapter.split(/\s+/).length} слов`;
+    document.getElementById('result-date').textContent =
+      new Date().toLocaleDateString('ru', { day: 'numeric', month: 'long' });
+
+    // Сбросить состояние сохранения
+    const saveBlock = document.getElementById('save-block');
+    saveBlock.classList.remove('saved');
+    document.getElementById('save-btn').disabled = false;
+    document.getElementById('save-btn').textContent = '📚 Сохранить в книгу';
+    document.getElementById('open-book-btn').style.display = 'none';
+
+    goTo(4);
+  }, 600);
+}
+
+// ── Save ──
+async function saveChapter() {
+  if (state.isSaved) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = 'Сохраняю...';
+
+  try {
+    await fetch(N8N_SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: state.userId, user_name: state.userName,
+        text: state.text, chapter: state.generatedChapter,
+        date: new Date().toISOString(),
+      })
+    });
+    state.isSaved = true;
+
+    // Переключить блок в состояние "сохранено"
+    document.getElementById('save-block').classList.add('saved');
+
+    // Показать кнопку "посмотреть книгу"
+    document.getElementById('open-book-btn').style.display = 'flex';
+
+    showToast('Глава добавлена в книгу! 📖');
+
+  } catch {
+    btn.disabled = false;
+    btn.textContent = '📚 Сохранить в книгу';
+    showToast('Ошибка сохранения, попробуй снова');
+  }
+}
+
+// ── Load chapters (Screen 5) ──
+async function loadChapters() {
+  document.getElementById('book-loading').style.display = 'flex';
+  document.getElementById('book-empty').style.display   = 'none';
+  document.getElementById('chapters-list').style.display = 'none';
+  document.getElementById('book-count').textContent = '...';
+
+  try {
+    const resp = await fetch(N8N_LIST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: state.userId })
+    });
+    const data = await resp.json();
+    const chapters = data.chapters || [];
+    renderChapters(chapters);
+  } catch {
+    // Demo-данные если нет n8n
+    renderChapters(DEMO_CHAPTERS);
+  }
+}
+
+function renderChapters(chapters) {
+  document.getElementById('book-loading').style.display = 'none';
+  document.getElementById('book-count').textContent =
+    `${chapters.length} ${pluralChapters(chapters.length)}`;
+
+  if (chapters.length === 0) {
+    document.getElementById('book-empty').style.display = 'flex';
+    return;
+  }
+
+  const list = document.getElementById('chapters-list');
+  list.style.display = 'flex';
+  list.innerHTML = '';
+
+  chapters.forEach((ch, idx) => {
+    const num     = chapters.length - idx;
+    const date    = ch.created_at
+      ? new Date(ch.created_at).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
+      : '';
+    const preview = ch.chapter?.slice(0, 60) + '...' || '';
+
+    const item = document.createElement('div');
+    item.className = 'chapter-item';
+    item.innerHTML = `
+      <div class="chapter-item-header" onclick="toggleChapter(this)">
+        <div class="chapter-item-left">
+          <div class="chapter-item-num">Глава ${num}</div>
+          <div class="chapter-item-preview">${preview}</div>
+          <div class="chapter-item-date">${date}</div>
+        </div>
+        <span class="chapter-item-arrow">▾</span>
+      </div>
+      <div class="chapter-item-body">
+        <div class="chapter-item-text">${ch.chapter || ''}</div>
+        <div class="chapter-item-actions">
+          <button class="chip-btn" onclick="copyText(${JSON.stringify(ch.chapter || '')})">⧉ Копировать</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function toggleChapter(header) {
+  const item = header.closest('.chapter-item');
+  const wasOpen = item.classList.contains('open');
+  // Закрыть все
+  document.querySelectorAll('.chapter-item.open').forEach(el => el.classList.remove('open'));
+  // Открыть текущий если был закрыт
+  if (!wasOpen) item.classList.add('open');
+}
+
+function copyText(text) {
+  navigator.clipboard?.writeText(text)
+    .then(() => showToast('Текст скопирован ✓'))
+    .catch(() => showToast('Не удалось скопировать'));
+}
+
+function pluralChapters(n) {
+  if (n % 100 >= 11 && n % 100 <= 19) return 'глав';
+  const r = n % 10;
+  if (r === 1) return 'глава';
+  if (r >= 2 && r <= 4) return 'главы';
+  return 'глав';
+}
+
+// Demo-данные для теста без n8n
+const DEMO_CHAPTERS = [
+  {
+    chapter: 'К вечеру город стал тише, будто сам устал от бесконечной спешки. Я шёл вдоль реки и чувствовал, как холодный воздух снимает тяжесть с плеч. А ночью, в комнате с мягким светом, появилось редкое и почти забытое ощущение — спокойствие, которое не нужно было заслуживать.',
+    created_at: new Date(Date.now() - 86400000).toISOString(),
+  },
+  {
+    chapter: 'Утро началось с запаха кофе и осознания, что сегодня всё может измениться. Я смотрел в окно на мокрые крыши и думал о том, как мало нужно человеку для счастья — иногда достаточно просто тишины и чашки горячего.',
+    created_at: new Date(Date.now() - 172800000).toISOString(),
+  },
+  {
+    chapter: 'Встреча затянулась на три часа. Слова кружились, как листья в ветреный день — много, но ни одно не ложилось точно. Домой я вернулся опустошённым, но где-то на краю усталости теплилось что-то похожее на надежду.',
+    created_at: new Date(Date.now() - 259200000).toISOString(),
+  },
+];
+
+// ── Поделиться / новая глава ──
+function copyChapter() {
+  navigator.clipboard?.writeText(state.generatedChapter)
+    .then(() => showToast('Текст скопирован ✓'))
+    .catch(() => showToast('Не удалось скопировать'));
+}
+function shareChapter() {
+  tg?.switchInlineQuery
+    ? tg.switchInlineQuery(state.generatedChapter.slice(0, 200) + '…')
+    : copyChapter();
+}
+function newChapter() {
+  state.text = ''; state.generatedChapter = ''; state.isSaved = false;
+  document.getElementById('day-input').value = '';
+  updateCharCount();
+  goTo(2);
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+document.addEventListener('DOMContentLoaded', updateCharCount);
+</script>
+</body>
+</html>
