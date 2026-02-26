@@ -15,9 +15,10 @@ let state = {
 };
 let currentScreen = 1;
 
+// Navigation
 function goTo(n) {
   const from = document.getElementById(`screen-${currentScreen}`);
-  const to   = document.getElementById(`screen-${n}`);
+  const to = document.getElementById(`screen-${n}`);
   from.classList.add('exit-left');
   from.classList.remove('active');
   setTimeout(() => from.classList.remove('exit-left'), 350);
@@ -33,11 +34,11 @@ function openBook() {
 }
 
 function updateCharCount() {
-  const ta  = document.getElementById('day-input');
-  const cc  = document.getElementById('char-count');
+  const ta = document.getElementById('day-input');
+  const cc = document.getElementById('char-count');
   const len = ta.value.length;
   cc.textContent = `${len} / 450`;
-  cc.className   = 'char-count' + (len >= 50 ? ' ok' : '');
+  cc.className = 'char-count' + (len >= 50 ? ' ok' : '');
   state.text = ta.value;
 }
 
@@ -56,6 +57,7 @@ function startVoice() {
   recognition.interimResults = true;
   const ta = document.getElementById('day-input');
   const base = ta.value;
+
   recognition.onresult = (e) => {
     let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -66,7 +68,8 @@ function startVoice() {
     updateCharCount();
   };
   recognition.onerror = () => { stopVoice(); showToast('Не удалось запустить микрофон'); };
-  recognition.onend   = () => { if (isRecording) stopVoice(); };
+  recognition.onend = () => { if (isRecording) stopVoice(); };
+
   recognition.start();
   isRecording = true;
   document.getElementById('voice-btn').classList.add('recording');
@@ -157,6 +160,7 @@ function showResult(chapter) {
     document.getElementById(`lstep-${i}`).className = 'loading-step done';
     document.getElementById(`licon-${i}`).textContent = '✓';
   });
+
   setTimeout(() => {
     document.getElementById('chapter-output').textContent = chapter;
     document.getElementById('chapter-words').textContent = `${chapter.split(/\s+/).length} слов`;
@@ -176,12 +180,13 @@ function showResult(chapter) {
 // Save
 async function saveChapter() {
   if (state.isSaved) return;
+
   const btn = document.getElementById('save-btn');
   btn.disabled = true;
   btn.textContent = 'Сохраняю...';
 
   try {
-    await fetch(N8N_SAVE_URL, {
+    const resp = await fetch(N8N_SAVE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -189,9 +194,14 @@ async function saveChapter() {
         user_name: state.userName,
         text: state.text,
         chapter: state.generatedChapter,
-        date: new Date().toISOString(),
+        date: new Date().toISOString()
       })
     });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`SAVE HTTP ${resp.status}: ${errText}`);
+    }
 
     state.isSaved = true;
     document.getElementById('save-block').classList.add('saved');
@@ -208,7 +218,7 @@ async function saveChapter() {
 // Load chapters
 async function loadChapters() {
   document.getElementById('book-loading').style.display = 'flex';
-  document.getElementById('book-empty').style.display   = 'none';
+  document.getElementById('book-empty').style.display = 'none';
   document.getElementById('chapters-list').style.display = 'none';
   document.getElementById('book-count').textContent = '...';
 
@@ -219,9 +229,15 @@ async function loadChapters() {
       body: JSON.stringify({ user_id: state.userId })
     });
 
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`LIST HTTP ${resp.status}: ${errText}`);
+    }
+
     const data = await resp.json();
-    const chapters = data.chapters || [];
-    renderChapters(chapters);
+    const d = Array.isArray(data) ? data[0] : data;
+    const chapters = d?.chapters || [];
+    renderChapters(Array.isArray(chapters) ? chapters : []);
   } catch (e) {
     console.error('Load chapters error:', e);
     showToast('Не удалось загрузить книгу');
@@ -244,11 +260,13 @@ function renderChapters(chapters) {
   list.innerHTML = '';
 
   chapters.forEach((ch, idx) => {
-    const num  = chapters.length - idx;
+    const num = chapters.length - idx;
     const date = ch.created_at
       ? new Date(ch.created_at).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
       : '';
-    const preview = ch.chapter?.slice(0, 60) + '...' || '';
+    const preview = (ch.chapter || '').slice(0, 60) + ((ch.chapter || '').length > 60 ? '...' : '');
+
+    const safeChapter = JSON.stringify(ch.chapter || '');
 
     const item = document.createElement('div');
     item.className = 'chapter-item';
@@ -264,7 +282,7 @@ function renderChapters(chapters) {
       <div class="chapter-item-body">
         <div class="chapter-item-text">${ch.chapter || ''}</div>
         <div class="chapter-item-actions">
-          <button class="chip-btn" onclick="copyText(${JSON.stringify(ch.chapter || '')})">⧉ Копировать</button>
+          <button class="chip-btn" onclick='copyText(${safeChapter})'>⧉ Копировать</button>
         </div>
       </div>
     `;
@@ -293,6 +311,7 @@ function pluralChapters(n) {
   return 'глав';
 }
 
+// Share / new
 function copyChapter() {
   navigator.clipboard?.writeText(state.generatedChapter)
     .then(() => showToast('Текст скопирован ✓'))
@@ -312,6 +331,7 @@ function newChapter() {
   goTo(2);
 }
 
+// Toast
 let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
