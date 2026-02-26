@@ -26,14 +26,10 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-  html, body {
-    width: 100%; height: 100%;
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 16px;
-    overflow: hidden;
-  }
+ html, body, #app, .screen {
+  max-width: 100%;
+  overflow-x: hidden;
+}
 
   #app { width: 100%; height: 100%; position: relative; overflow: hidden; }
 
@@ -61,11 +57,10 @@
     bottom: -120px; left: -120px;
   }
 
-  .screen-content {
-    flex: 1; padding: 24px 20px;
-    position: relative; z-index: 1;
-    display: flex; flex-direction: column;
-  }
+ .screen-content {
+  width: 100%;
+  min-width: 0;
+}
   .header-label {
     font-size: 11px; font-weight: 500; letter-spacing: 2px;
     text-transform: uppercase; color: var(--gold);
@@ -150,21 +145,22 @@
   .day-textarea:focus { border-color: rgba(201,168,76,0.4); }
   .day-textarea::placeholder { color: var(--text-muted); }
 
-  .input-footer {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 10px;
-  }
-  .char-count { font-size: 12px; color: var(--text-muted); }
+ .input-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+  char-count {
+  flex: 1;
+  min-width: 0;
+}
   .char-count.ok { color: var(--success); }
 
   .voice-btn {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 24px; padding: 8px 16px;
-    color: var(--text-dim); font-size: 13px;
-    cursor: pointer; transition: all .2s;
-    font-family: 'DM Sans', sans-serif;
-  }
+  flex-shrink: 1;
+  max-width: 45vw; /* чтобы кнопка не выталкивала верстку вправо */
+  overflow: hidden;
+}
   .voice-btn.recording {
     background: rgba(255,80,80,0.12);
     border-color: rgba(255,80,80,0.4); color: #ff6060;
@@ -384,7 +380,9 @@
     border-radius: 24px; padding: 10px 18px;
     font-size: 13px; color: var(--text);
     opacity: 0; transition: all .3s;
-    pointer-events: none; z-index: 100; white-space: nowrap;
+    pointer-events: none; z-index: 100; max-width: calc(100vw - 32px);
+white-space: normal;
+text-align: center;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
