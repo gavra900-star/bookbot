@@ -581,6 +581,50 @@ let state = {
   userName: tg?.initDataUnsafe?.user?.first_name || null,
 };
 let currentScreen = 1;
+const tgInitData = tg?.initData || '';
+
+function getUserIdString() {
+  if (state.userId === null || state.userId === undefined) return '';
+  return String(state.userId);
+}
+
+function buildBasePayload() {
+  const userId = getUserIdString();
+  return {
+    user_id: userId,
+    userId,
+    telegram_user_id: userId,
+    user_name: state.userName || '',
+    userName: state.userName || '',
+    telegram_user_name: state.userName || '',
+    tg_init_data: tgInitData,
+  };
+}
+
+async function readJsonOrText(resp) {
+  const raw = await resp.text();
+  if (!raw) return { json: null, raw: '' };
+  try {
+    return { json: JSON.parse(raw), raw };
+  } catch {
+    return { json: null, raw };
+  }
+}
+
+function extractChapters(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data.chapters)) return data.chapters;
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.result)) return data.result;
+  if (Array.isArray(data.rows)) return data.rows;
+  if (Array.isArray(data.records)) return data.records;
+  if (Array.isArray(data.book)) return data.book;
+  if (Array.isArray(data?.data?.chapters)) return data.data.chapters;
+  if (Array.isArray(data?.result?.chapters)) return data.result.chapters;
+  return [];
+}
 
 function goTo(n) {
   if (n === currentScreen) return;
@@ -647,7 +691,7 @@ function stopVoice() {
 async function generate() {
   const text = document.getElementById('day-input').value.trim();
   if (text.length < 10) { showToast('Напиши хотя бы пару предложений'); return; }
-  if (!state.userId) { showToast('Не удалось определить пользователя Telegram'); return; }
+  if (!getUserIdString()) { showToast('Не удалось определить пользователя Telegram'); return; }
 
   state.text = text;
   goTo(3);
@@ -656,12 +700,20 @@ async function generate() {
     const resp = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: state.userId, user_name: state.userName, text: state.text })
+      body: JSON.stringify({
+        ...buildBasePayload(),
+        text: state.text,
+      })
     });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const parsed = await readJsonOrText(resp);
+    if (!resp.ok) {
+      console.error('Generate failed:', resp.status, parsed.raw);
+      throw new Error(`HTTP ${resp.status}`);
+    }
 
-    const data = await resp.json();
-    const chapter = data.chapter || data.output || data.text || '';
+    const data = parsed.json || {};
+    const root = Array.isArray(data) ? (data[0] || {}) : data;
+    const chapter = root.chapter || root.output || root.text || root.chapter_text || root.content || '';
     if (!chapter) throw new Error('empty response');
 
     state.generatedChapter = chapter;
@@ -718,23 +770,38 @@ function showResult(chapter) {
 
 async function saveChapter() {
   if (state.isSaved) return;
-  if (!state.userId) { showToast('Не удалось определить пользователя Telegram'); return; }
+  if (!getUserIdString()) { showToast('Не удалось определить пользователя Telegram'); return; }
 
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Сохраняю...';
 
   try {
+    const payload = {
+      ...buildBasePayload(),
+      text: state.text,
+      chapter: state.generatedChapter,
+      chapter_text: state.generatedChapter,
+      content: state.generatedChapter,
+      date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
     const resp = await fetch(N8N_SAVE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: state.userId, user_name: state.userName,
-        text: state.text, chapter: state.generatedChapter,
-        date: new Date().toISOString(),
-      })
+      body: JSON.stringify(payload)
     });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const parsed = await readJsonOrText(resp);
+    if (!resp.ok) {
+      console.error('Save failed:', resp.status, parsed.raw);
+      throw new Error(`HTTP ${resp.status}`);
+    }
+
+    if (parsed.json && (parsed.json.error || parsed.json.ok === false || parsed.json.success === false)) {
+      console.error('Save business-error:', parsed.json);
+      throw new Error('save rejected');
+    }
 
     state.isSaved = true;
     document.getElementById('save-block').classList.add('saved');
@@ -753,7 +820,7 @@ async function loadChapters() {
   document.getElementById('chapters-list').style.display = 'none';
   document.getElementById('book-count').textContent = '...';
 
-  if (!state.userId) {
+  if (!getUserIdString()) {
     document.getElementById('book-loading').style.display = 'none';
     document.getElementById('book-empty').style.display = 'flex';
     document.getElementById('book-count').textContent = '0 глав';
@@ -762,16 +829,29 @@ async function loadChapters() {
   }
 
   try {
-    const resp = await fetch(N8N_LIST_URL, {
+    let resp = await fetch(N8N_LIST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: state.userId })
+      body: JSON.stringify(buildBasePayload())
     });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    // Some n8n list webhooks are configured as GET, not POST.
+    if (resp.status === 404 || resp.status === 405) {
+      const userId = encodeURIComponent(getUserIdString());
+      const separator = N8N_LIST_URL.includes('?') ? '&' : '?';
+      resp = await fetch(`${N8N_LIST_URL}${separator}user_id=${userId}`, {
+        method: 'GET'
+      });
+    }
 
-    const data = await resp.json();
-    const chapters = Array.isArray(data.chapters) ? data.chapters : [];
+    const parsed = await readJsonOrText(resp);
+    if (!resp.ok) {
+      console.error('List failed:', resp.status, parsed.raw);
+      throw new Error(`HTTP ${resp.status}`);
+    }
+
+    const data = parsed.json || {};
+    const chapters = extractChapters(data);
     renderChapters(chapters);
   } catch {
     document.getElementById('book-loading').style.display = 'none';
@@ -805,7 +885,7 @@ function renderChapters(chapters) {
   list.innerHTML = '';
 
   chapters.forEach((ch, idx) => {
-    const chapterText = String(ch.chapter || '');
+    const chapterText = String(ch.chapter || ch.text || ch.output || ch.chapter_text || ch.content || '');
     const num = chapters.length - idx;
     const date = ch.created_at
       ? new Date(ch.created_at).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
