@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>BookBot — твоя книга по дням</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BookBot - твоя книга по дням</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0d1117;
@@ -26,10 +26,14 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
- html, body, #app, .screen {
-  max-width: 100%;
-  overflow-x: hidden;
-}
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    overflow: hidden;
+  }
 
   #app { width: 100%; height: 100%; position: relative; overflow: hidden; }
 
@@ -57,10 +61,13 @@
     bottom: -120px; left: -120px;
   }
 
- .screen-content {
-  width: 100%;
-  min-width: 0;
-}
+  .screen-content {
+    flex: 1; padding: 24px 20px;
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+  }
   .header-label {
     font-size: 11px; font-weight: 500; letter-spacing: 2px;
     text-transform: uppercase; color: var(--gold);
@@ -99,6 +106,8 @@
     background: linear-gradient(to top, var(--bg) 70%, transparent);
     position: relative; z-index: 2;
     display: flex; flex-direction: column; gap: 10px;
+    width: 100%;
+    max-width: 100%;
   }
 
   .back-btn {
@@ -145,22 +154,21 @@
   .day-textarea:focus { border-color: rgba(201,168,76,0.4); }
   .day-textarea::placeholder { color: var(--text-muted); }
 
- .input-footer {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-  char-count {
-  flex: 1;
-  min-width: 0;
-}
+  .input-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .char-count { font-size: 12px; color: var(--text-muted); }
   .char-count.ok { color: var(--success); }
 
   .voice-btn {
-  flex-shrink: 1;
-  max-width: 45vw; /* чтобы кнопка не выталкивала верстку вправо */
-  overflow: hidden;
-}
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 24px; padding: 8px 16px;
+    color: var(--text-dim); font-size: 13px;
+    cursor: pointer; transition: all .2s;
+    font-family: 'DM Sans', sans-serif;
+  }
   .voice-btn.recording {
     background: rgba(255,80,80,0.12);
     border-color: rgba(255,80,80,0.4); color: #ff6060;
@@ -236,9 +244,10 @@
   }
   .chapter-text {
     font-family: 'Playfair Display', serif;
-    font-size: 14px; /* было 16px */
-    line-height: 1.8; color: var(--text);
+    font-size: 16px; line-height: 1.8; color: var(--text);
     position: relative; z-index: 1; font-style: italic;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .chapter-footer {
     display: flex; align-items: center; justify-content: space-between;
@@ -266,8 +275,12 @@
     font-size: 14px; color: var(--success);
   }
 
-  #screen-5 { overflow-y: auto; }
-  #screen-5 .screen-content { padding-bottom: 32px; }
+  #screen-5 {
+    overflow-y: auto;
+  }
+  #screen-5 .screen-content {
+    padding-bottom: 32px;
+  }
 
   .book-header {
     display: flex; align-items: center; justify-content: space-between;
@@ -335,6 +348,7 @@
     border-top: 1px solid var(--border);
     padding-top: 14px;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
   .chapter-item-actions {
     display: flex; gap: 8px;
@@ -380,9 +394,7 @@
     border-radius: 24px; padding: 10px 18px;
     font-size: 13px; color: var(--text);
     opacity: 0; transition: all .3s;
-    pointer-events: none; z-index: 100; max-width: calc(100vw - 32px);
-white-space: normal;
-text-align: center;
+    pointer-events: none; z-index: 100; white-space: nowrap;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -402,25 +414,25 @@ text-align: center;
         <div class="book-icon">📖</div>
         <div class="header-label">BookBot</div>
         <h1 class="screen-title">Твоя книга<br>по дням</h1>
-        <p class="screen-subtitle">Расскажи, как прошёл день — бот превратит это в художественную главу.</p>
+        <p class="screen-subtitle">Расскажи, как прошёл день - бот превратит это в художественную главу.</p>
         <ul class="feature-list">
           <li class="feature-item">
             <div class="feature-dot"></div>
-            <div class="feature-text"><strong>30 секунд</strong> — от мысли до готовой главы</div>
+            <div class="feature-text"><strong>30 секунд</strong> - от мысли до готовой главы</div>
           </li>
           <li class="feature-item">
             <div class="feature-dot"></div>
-            <div class="feature-text"><strong>Текст или голос</strong> — как удобно</div>
+            <div class="feature-text"><strong>Текст или голос</strong> - как удобно</div>
           </li>
           <li class="feature-item">
             <div class="feature-dot"></div>
-            <div class="feature-text"><strong>Вся книга</strong> — все главы в одном месте</div>
+            <div class="feature-text"><strong>Вся книга</strong> - все главы в одном месте</div>
           </li>
         </ul>
       </div>
     </div>
     <div class="bottom-bar">
-      <button class="btn btn-primary" onclick="goTo(2)">Написать главу →</button>
+      <button class="btn btn-primary" onclick="goTo(2)">Написать главу -&gt;</button>
       <button class="btn btn-book" onclick="openBook()">📚 Открыть мою книгу</button>
     </div>
   </div>
@@ -431,7 +443,7 @@ text-align: center;
 
       <div class="header-label" style="margin-top:16px">Как прошёл день?</div>
       <h2 class="screen-title">Напиши или<br>надиктуй</h2>
-      <p class="screen-subtitle">2–3 предложения — достаточно. Пиши как есть.</p>
+      <p class="screen-subtitle">2-3 предложения - достаточно. Пиши как есть.</p>
 
       <div class="input-area">
         <textarea
@@ -449,11 +461,11 @@ text-align: center;
             <span id="voice-label">Голосом</span>
           </button>
         </div>
-        <div class="auto-badge">✨ Жанр и стиль — бот подберёт сам</div>
+        <div class="auto-badge">✨ Жанр и стиль - бот подберёт сам</div>
       </div>
     </div>
     <div class="bottom-bar">
-      <button class="btn btn-primary" onclick="generate()">Создать главу →</button>
+      <button class="btn btn-primary" onclick="generate()">Создать главу -&gt;</button>
     </div>
   </div>
 
@@ -497,7 +509,9 @@ text-align: center;
 
       <div class="result-actions" id="save-block">
         <div class="save-pending">
-          <button class="btn btn-primary" onclick="saveChapter()" id="save-btn">📚 Сохранить в книгу</button>
+          <button class="btn btn-primary" onclick="saveChapter()" id="save-btn">
+            📚 Сохранить в книгу
+          </button>
         </div>
         <div class="save-done">
           <span>✓</span><span>Глава сохранена!</span>
@@ -510,7 +524,9 @@ text-align: center;
       </div>
 
       <div style="margin-top:10px">
-        <button class="btn btn-book" id="open-book-btn" style="display:none" onclick="openBook()">📖 Посмотреть мою книгу</button>
+        <button class="btn btn-book" id="open-book-btn" style="display:none" onclick="openBook()">
+          📖 Посмотреть мою книгу
+        </button>
       </div>
     </div>
   </div>
@@ -535,7 +551,7 @@ text-align: center;
       <div class="empty-state" id="book-empty" style="display:none">
         <div class="empty-icon">📓</div>
         <div class="empty-title">Книга пока пустая</div>
-        <div class="empty-sub">Напиши первую главу — она появится здесь</div>
+        <div class="empty-sub">Напиши первую главу - она появится здесь</div>
       </div>
 
       <div class="chapters-list" id="chapters-list" style="display:none"></div>
@@ -561,22 +577,18 @@ let state = {
   text: '',
   generatedChapter: '',
   isSaved: false,
-  userId: tg?.initDataUnsafe?.user?.id || 'dev_user',
-  userName: tg?.initDataUnsafe?.user?.first_name || 'Пользователь',
+  userId:   tg?.initDataUnsafe?.user?.id         || null,
+  userName: tg?.initDataUnsafe?.user?.first_name || null,
 };
 let currentScreen = 1;
-let loadingTimer = null;
-let toastTimer = null;
-let recognition = null;
-let isRecording = false;
 
 function goTo(n) {
+  if (n === currentScreen) return;
   const from = document.getElementById(`screen-${currentScreen}`);
-  const to = document.getElementById(`screen-${n}`);
+  const to   = document.getElementById(`screen-${n}`);
   from.classList.add('exit-left');
   from.classList.remove('active');
   setTimeout(() => from.classList.remove('exit-left'), 350);
-  to.style.transform = n > currentScreen ? 'translateX(40px)' : 'translateX(-40px)';
   to.classList.add('active');
   currentScreen = n;
   to.scrollTop = 0;
@@ -588,23 +600,20 @@ function openBook() {
 }
 
 function updateCharCount() {
-  const ta = document.getElementById('day-input');
-  const cc = document.getElementById('char-count');
+  const ta  = document.getElementById('day-input');
+  const cc  = document.getElementById('char-count');
   const len = ta.value.length;
   cc.textContent = `${len} / 450`;
-  cc.className = 'char-count' + (len >= 50 ? ' ok' : '');
+  cc.className   = 'char-count' + (len >= 50 ? ' ok' : '');
   state.text = ta.value;
 }
 
+let recognition = null, isRecording = false;
 function toggleVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    showToast('Голосовой ввод недоступен на этом устройстве');
-    return;
-  }
+  if (!SR) { showToast('Голосовой ввод недоступен на этом устройстве'); return; }
   isRecording ? stopVoice() : startVoice();
 }
-
 function startVoice() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -613,10 +622,8 @@ function startVoice() {
   recognition.interimResults = true;
   const ta = document.getElementById('day-input');
   const base = ta.value;
-
   recognition.onresult = (e) => {
-    let interim = '';
-    let final = '';
+    let interim = '', final = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) final += e.results[i][0].transcript;
       else interim += e.results[i][0].transcript;
@@ -624,93 +631,55 @@ function startVoice() {
     ta.value = base + (base && final ? ' ' : '') + final + interim;
     updateCharCount();
   };
-
-  recognition.onerror = () => {
-    stopVoice();
-    showToast('Не удалось запустить микрофон');
-  };
-
-  recognition.onend = () => {
-    if (isRecording) stopVoice();
-  };
-
+  recognition.onerror = () => { stopVoice(); showToast('Не удалось запустить микрофон'); };
+  recognition.onend   = () => { if (isRecording) stopVoice(); };
   recognition.start();
   isRecording = true;
   document.getElementById('voice-btn').classList.add('recording');
   document.getElementById('voice-label').textContent = 'Говорите...';
 }
-
 function stopVoice() {
-  if (recognition) recognition.stop();
-  recognition = null;
-  isRecording = false;
+  recognition?.stop(); recognition = null; isRecording = false;
   document.getElementById('voice-btn').classList.remove('recording');
   document.getElementById('voice-label').textContent = 'Голосом';
 }
 
 async function generate() {
   const text = document.getElementById('day-input').value.trim();
-  if (text.length < 10) {
-    showToast('Напиши хотя бы пару предложений');
-    return;
-  }
+  if (text.length < 10) { showToast('Напиши хотя бы пару предложений'); return; }
+  if (!state.userId) { showToast('Не удалось определить пользователя Telegram'); return; }
 
   state.text = text;
   goTo(3);
   animateLoadingSteps();
-
   try {
     const resp = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: state.userId,
-        user_name: state.userName,
-        text: state.text
-      })
+      body: JSON.stringify({ user_id: state.userId, user_name: state.userName, text: state.text })
     });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    const raw = await resp.text();
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${raw}`);
+    const data = await resp.json();
+    const chapter = data.chapter || data.output || data.text || '';
+    if (!chapter) throw new Error('empty response');
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error('Ответ не JSON');
-    }
-
-    const d = Array.isArray(data) ? data[0] : data;
-    const chapter =
-      d?.chapter ??
-      d?.output ??
-      d?.text ??
-      d?.data?.chapter ??
-      d?.result?.chapter ??
-      d?.message?.content ??
-      '';
-
-    if (!chapter || typeof chapter !== 'string') {
-      console.error('Unexpected generate payload:', data);
-      throw new Error('empty chapter');
-    }
-
-    state.generatedChapter = chapter.trim();
+    state.generatedChapter = chapter;
     state.isSaved = false;
-    showResult(state.generatedChapter);
-  } catch (e) {
-    console.error('Generate error:', e);
-    showToast('Не удалось получить главу из n8n');
+    showResult(chapter);
+  } catch {
+    clearTimeout(loadingTimer);
+    showToast('Не удалось сгенерировать главу. Попробуй снова.');
     goTo(2);
   }
 }
 
+let loadingTimer;
 function animateLoadingSteps() {
   [1,2,3].forEach(i => {
     document.getElementById(`lstep-${i}`).className = 'loading-step';
     document.getElementById(`licon-${i}`).textContent = '○';
   });
-
   let i = 0;
   (function next() {
     if (i < 3) {
@@ -718,9 +687,9 @@ function animateLoadingSteps() {
         document.getElementById(`lstep-${i}`).classList.add('done');
         document.getElementById(`licon-${i}`).textContent = '✓';
       }
-      document.getElementById(`lstep-${i + 1}`).classList.add('active');
+      document.getElementById(`lstep-${i+1}`).classList.add('active');
       i++;
-      loadingTimer = setTimeout(next, 1200);
+      loadingTimer = setTimeout(next, 1800);
     }
   })();
 }
@@ -731,53 +700,47 @@ function showResult(chapter) {
     document.getElementById(`lstep-${i}`).className = 'loading-step done';
     document.getElementById(`licon-${i}`).textContent = '✓';
   });
-
   setTimeout(() => {
     document.getElementById('chapter-output').textContent = chapter;
-    document.getElementById('chapter-words').textContent = `${chapter.split(/\s+/).filter(Boolean).length} слов`;
+    document.getElementById('chapter-words').textContent = `${chapter.split(/\s+/).length} слов`;
     document.getElementById('result-date').textContent =
       new Date().toLocaleDateString('ru', { day: 'numeric', month: 'long' });
 
     const saveBlock = document.getElementById('save-block');
     saveBlock.classList.remove('saved');
-    const saveBtn = document.getElementById('save-btn');
-    saveBtn.disabled = false;
-    saveBtn.textContent = '📚 Сохранить в книгу';
+    document.getElementById('save-btn').disabled = false;
+    document.getElementById('save-btn').textContent = '📚 Сохранить в книгу';
     document.getElementById('open-book-btn').style.display = 'none';
 
     goTo(4);
-  }, 400);
+  }, 600);
 }
 
 async function saveChapter() {
   if (state.isSaved) return;
+  if (!state.userId) { showToast('Не удалось определить пользователя Telegram'); return; }
 
   const btn = document.getElementById('save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Сохраняю...';
+  btn.disabled = true; btn.textContent = 'Сохраняю...';
 
   try {
-    const resp = await fetch('https://cintre.app.n8n.cloud/webhook/bookbot-save', {
+    const resp = await fetch(N8N_SAVE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: state.userId,
-        user_name: state.userName,
-        text: state.text,
-        chapter: state.generatedChapter,
-        date: new Date().toISOString()
+        user_id: state.userId, user_name: state.userName,
+        text: state.text, chapter: state.generatedChapter,
+        date: new Date().toISOString(),
       })
     });
 
-    const raw = await resp.text();
-    if (!resp.ok) throw new Error(`SAVE HTTP ${resp.status}: ${raw}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
     state.isSaved = true;
     document.getElementById('save-block').classList.add('saved');
     document.getElementById('open-book-btn').style.display = 'flex';
-    showToast('Глава добавлена в книгу! 📖');
-  } catch (e) {
-    console.error('Save chapter error:', e);
+    showToast('Глава добавлена в книгу');
+  } catch {
     btn.disabled = false;
     btn.textContent = '📚 Сохранить в книгу';
     showToast('Ошибка сохранения, попробуй снова');
@@ -786,9 +749,17 @@ async function saveChapter() {
 
 async function loadChapters() {
   document.getElementById('book-loading').style.display = 'flex';
-  document.getElementById('book-empty').style.display = 'none';
+  document.getElementById('book-empty').style.display   = 'none';
   document.getElementById('chapters-list').style.display = 'none';
   document.getElementById('book-count').textContent = '...';
+
+  if (!state.userId) {
+    document.getElementById('book-loading').style.display = 'none';
+    document.getElementById('book-empty').style.display = 'flex';
+    document.getElementById('book-count').textContent = '0 глав';
+    showToast('Не удалось определить пользователя Telegram');
+    return;
+  }
 
   try {
     const resp = await fetch(N8N_LIST_URL, {
@@ -797,105 +768,68 @@ async function loadChapters() {
       body: JSON.stringify({ user_id: state.userId })
     });
 
-    const raw = await resp.text();
-    if (!resp.ok) throw new Error(`LIST HTTP ${resp.status}: ${raw}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      throw new Error('Ответ списка не JSON');
-    }
-
-    const d = Array.isArray(data) ? data[0] : data;
-    const chapters = Array.isArray(d?.chapters) ? d.chapters : [];
+    const data = await resp.json();
+    const chapters = Array.isArray(data.chapters) ? data.chapters : [];
     renderChapters(chapters);
-  } catch (e) {
-    console.error('Load chapters error:', e);
-    showToast('Не удалось загрузить книгу');
-    renderChapters([]);
+  } catch {
+    document.getElementById('book-loading').style.display = 'none';
+    document.getElementById('book-empty').style.display = 'flex';
+    document.getElementById('book-count').textContent = '0 глав';
+    showToast('Не удалось загрузить главы');
   }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function renderChapters(chapters) {
   document.getElementById('book-loading').style.display = 'none';
-  document.getElementById('book-count').textContent = `${chapters.length} ${pluralChapters(chapters.length)}`;
-
-  const empty = document.getElementById('book-empty');
-  const list = document.getElementById('chapters-list');
-  list.innerHTML = '';
+  document.getElementById('book-count').textContent =
+    `${chapters.length} ${pluralChapters(chapters.length)}`;
 
   if (chapters.length === 0) {
-    empty.style.display = 'flex';
-    list.style.display = 'none';
+    document.getElementById('book-empty').style.display = 'flex';
     return;
   }
 
-  empty.style.display = 'none';
+  const list = document.getElementById('chapters-list');
   list.style.display = 'flex';
+  list.innerHTML = '';
 
   chapters.forEach((ch, idx) => {
+    const chapterText = String(ch.chapter || '');
     const num = chapters.length - idx;
-    const fullText = typeof ch.chapter === 'string' ? ch.chapter : '';
-    const preview = fullText.length > 60 ? fullText.slice(0, 60) + '...' : fullText;
     const date = ch.created_at
-      ? new Date(ch.created_at).toLocaleDateString('ru', { day: 'numeric', month: 'long', year: 'numeric' })
+      ? new Date(ch.created_at).toLocaleDateString('ru', { day:'numeric', month:'long', year:'numeric' })
       : '';
+    const preview = chapterText ? `${chapterText.slice(0, 60)}...` : '';
 
     const item = document.createElement('div');
     item.className = 'chapter-item';
-
-    const header = document.createElement('div');
-    header.className = 'chapter-item-header';
-    header.onclick = () => toggleChapter(header);
-
-    const left = document.createElement('div');
-    left.className = 'chapter-item-left';
-
-    const numEl = document.createElement('div');
-    numEl.className = 'chapter-item-num';
-    numEl.textContent = `Глава ${num}`;
-
-    const previewEl = document.createElement('div');
-    previewEl.className = 'chapter-item-preview';
-    previewEl.textContent = preview;
-
-    const dateEl = document.createElement('div');
-    dateEl.className = 'chapter-item-date';
-    dateEl.textContent = date;
-
-    left.appendChild(numEl);
-    left.appendChild(previewEl);
-    left.appendChild(dateEl);
-
-    const arrow = document.createElement('span');
-    arrow.className = 'chapter-item-arrow';
-    arrow.textContent = '▾';
-
-    header.appendChild(left);
-    header.appendChild(arrow);
-
-    const body = document.createElement('div');
-    body.className = 'chapter-item-body';
-
-    const textEl = document.createElement('div');
-    textEl.className = 'chapter-item-text';
-    textEl.textContent = fullText;
-
-    const actions = document.createElement('div');
-    actions.className = 'chapter-item-actions';
-
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'chip-btn';
-    copyBtn.textContent = '⧉ Копировать';
-    copyBtn.onclick = () => copyText(fullText);
-
-    actions.appendChild(copyBtn);
-    body.appendChild(textEl);
-    body.appendChild(actions);
-
-    item.appendChild(header);
-    item.appendChild(body);
+    item.innerHTML = `
+      <div class="chapter-item-header" onclick="toggleChapter(this)">
+        <div class="chapter-item-left">
+          <div class="chapter-item-num">Глава ${num}</div>
+          <div class="chapter-item-preview">${escapeHtml(preview)}</div>
+          <div class="chapter-item-date">${escapeHtml(date)}</div>
+        </div>
+        <span class="chapter-item-arrow">▾</span>
+      </div>
+      <div class="chapter-item-body">
+        <div class="chapter-item-text">${escapeHtml(chapterText)}</div>
+        <div class="chapter-item-actions">
+          <button class="chip-btn" onclick="copyText(${JSON.stringify(chapterText)})">⧉ Копировать</button>
+        </div>
+      </div>
+    `;
     list.appendChild(item);
   });
 }
@@ -909,7 +843,7 @@ function toggleChapter(header) {
 
 function copyText(text) {
   navigator.clipboard?.writeText(text)
-    .then(() => showToast('Текст скопирован ✓'))
+    .then(() => showToast('Текст скопирован'))
     .catch(() => showToast('Не удалось скопировать'));
 }
 
@@ -922,14 +856,15 @@ function pluralChapters(n) {
 }
 
 function copyChapter() {
-  navigator.clipboard?.writeText(state.generatedChapter || '')
-    .then(() => showToast('Текст скопирован ✓'))
+  navigator.clipboard?.writeText(state.generatedChapter)
+    .then(() => showToast('Текст скопирован'))
     .catch(() => showToast('Не удалось скопировать'));
 }
 
 function shareChapter() {
-  if (tg?.switchInlineQuery) tg.switchInlineQuery((state.generatedChapter || '').slice(0, 200) + '…');
-  else copyChapter();
+  tg?.switchInlineQuery
+    ? tg.switchInlineQuery(state.generatedChapter.slice(0, 200) + '...')
+    : copyChapter();
 }
 
 function newChapter() {
@@ -941,6 +876,7 @@ function newChapter() {
   goTo(2);
 }
 
+let toastTimer;
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
