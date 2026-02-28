@@ -520,7 +520,6 @@
       </div>
 
       <div style="display:flex; gap:10px; margin-top:10px">
-        <button class="btn btn-secondary" style="flex:1;padding:14px;font-size:14px" onclick="shareChapter()">↑ Поделиться</button>
         <button class="btn btn-ghost" style="flex:1;padding:14px;font-size:14px" onclick="newChapter()">+ Новая глава</button>
       </div>
 
@@ -966,113 +965,6 @@ function copyChapter() {
     .catch(() => showToast('Не удалось скопировать'));
 }
 
-async function shareChapter() {
-  const text = String(state.generatedChapter || '').trim();
-  if (!text) {
-    showToast('Нет текста для отправки');
-    return;
-  }
-
-  const shareText = text.slice(0, 3500);
-
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: 'Глава из BookBot',
-        text: shareText,
-      });
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return;
-      // Fallback to custom menu.
-    }
-  }
-
-  showShareMenu(shareText);
-}
-
-function openExternal(url) {
-  if (tg?.openLink) {
-    tg.openLink(url, { try_instant_view: false });
-    return;
-  }
-  window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function openTelegramShare(text) {
-  const encoded = encodeURIComponent(text);
-  const telegramUrl = `https://t.me/share/url?url=&text=${encoded}`;
-  if (tg?.openTelegramLink) {
-    tg.openTelegramLink(telegramUrl);
-    return;
-  }
-  openExternal(telegramUrl);
-}
-
-function showShareMenu(text) {
-  document.getElementById('share-menu')?.remove();
-
-  const menu = document.createElement('div');
-  menu.id = 'share-menu';
-  menu.style.cssText = `
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-    display: flex; align-items: flex-end; z-index: 200;
-  `;
-
-  const panel = document.createElement('div');
-  panel.style.cssText = 'background:#1c2230;border-radius:20px 20px 0 0;padding:24px 20px;width:100%;display:flex;flex-direction:column;gap:12px';
-
-  const title = document.createElement('div');
-  title.textContent = 'Поделиться главой';
-  title.style.cssText = 'font-size:13px;color:#8b8680;text-align:center;margin-bottom:4px';
-
-  const tgBtn = document.createElement('button');
-  tgBtn.type = 'button';
-  tgBtn.textContent = '✈️ Telegram';
-  tgBtn.style.cssText = 'display:flex;align-items:center;gap:12px;background:#161b22;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 16px;color:#e8e3d8;font-size:15px;font-family:\'DM Sans\',sans-serif;cursor:pointer;width:100%';
-  tgBtn.addEventListener('click', () => {
-    openTelegramShare(text);
-    menu.remove();
-  });
-
-  const waBtn = document.createElement('button');
-  waBtn.type = 'button';
-  waBtn.textContent = '💬 WhatsApp';
-  waBtn.style.cssText = tgBtn.style.cssText;
-  waBtn.addEventListener('click', () => {
-    const encoded = encodeURIComponent(text);
-    openExternal(`https://wa.me/?text=${encoded}`);
-    menu.remove();
-  });
-
-  const copyBtn = document.createElement('button');
-  copyBtn.type = 'button';
-  copyBtn.textContent = '⧉ Копировать текст';
-  copyBtn.style.cssText = tgBtn.style.cssText;
-  copyBtn.addEventListener('click', () => {
-    copyChapter();
-    menu.remove();
-  });
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.type = 'button';
-  cancelBtn.textContent = 'Отмена';
-  cancelBtn.style.cssText = 'background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px;color:#8b8680;font-size:15px;font-family:\'DM Sans\',sans-serif;cursor:pointer;width:100%';
-  cancelBtn.addEventListener('click', () => menu.remove());
-
-  panel.appendChild(title);
-  panel.appendChild(tgBtn);
-  panel.appendChild(waBtn);
-  panel.appendChild(copyBtn);
-  panel.appendChild(cancelBtn);
-  menu.appendChild(panel);
-
-  menu.addEventListener('click', (e) => {
-    if (e.target === menu) menu.remove();
-  });
-
-  document.body.appendChild(menu);
-}
 
 function newChapter() {
   state.text = '';
@@ -1099,7 +991,6 @@ function handleOutsideTapForKeyboard(e) {
   if (!active || active.tagName !== 'TEXTAREA') return;
   const target = e.target;
   if (target.closest('#day-input')) return;
-  if (target.closest('#share-menu')) return;
   dismissKeyboard();
 }
 
